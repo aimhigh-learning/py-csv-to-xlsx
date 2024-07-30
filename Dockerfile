@@ -10,8 +10,4 @@ COPY . /var/task/
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
 
-## Copy test dummy input.csv file
-
-COPY ./input.csv /home/input.csv
-
 CMD [ "__init__.handler" ]

@@ -1,27 +1,18 @@
-import os;
-import csv;
-import sys;
+import pandas as pd;
 
-def _read(file: str):
-    with open(file, newline='') as f:
-        reader = csv.reader(f)
-        try:
-            for row in reader:
-                print(row)
-        except csv.Error as e:
-            sys.exit('file {}, line {}: {}'.format(file, reader.line_num, e))
+def _readFromS3(bucket: str , key : str , s3):
+    response = s3.get_object(Bucket=bucket, Key=key)
+    status = response.get("ResponseMetadata", {}).get("HTTPStatusCode")
+    if status == 200:
+         print(f"Successful S3 get_object response. Status - {status} for key - {key}")
+         books_df = pd.read_csv(response.get("Body"))
+         return books_df
+    else :
+        print(f"Unsuccessful S3 get_object response. Status - {status}")
+        raise Exception(f"Sorry some issue while fetching the object from s3 : -{status}")
     
 
 
-def _readWrite(file: str, worksheet):
-    with open(file, newline='') as f:
-        reader = csv.reader(f)
-        try:
-            for row_num,row in enumerate(reader):
-                worksheet.write_row(row_num,0,row); ## Write a row
-        except csv.Error as e:
-            sys.exit('file {}, line {}: {}'.format(file, reader.line_num, e))
-
 if __name__ == 'main':
     print('Inside reader module ...')
-    _read();
+    

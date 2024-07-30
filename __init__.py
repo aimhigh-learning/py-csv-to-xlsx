@@ -1,10 +1,14 @@
-import os;
-import sys;
-# from reader.reader import *
-# from reader.reader import _read, _readWrite
-from customxlsxwriter.writer import _protectedWorkSheet
+import os
+from customxlsxwriter.writer import _writeProtectedSheetToS3
 import pandas as pd
 from datetime import datetime
+import boto3
+from reader.reader import _readFromS3
+import json
+
+ACCESS_KEY = os.environ.get('ACCESS_KEY');
+SECRET_KEY = os.environ.get('SECRET_KEY');
+BUCKET = os.environ.get('BUCKET');
 
 
 def handler(event, context):
@@ -15,15 +19,46 @@ def handler(event, context):
     if(inputFile == '' or template == ''):
         raise Exception('Sorry , inputFile and template as a request body can not be null or empty')
 
-    print('Current timestamp before read_csv: ', datetime.now())
-    new_dataFrame = pd.read_csv(inputFile)
-    print('Current timestamp after read_csv: ', datetime.now())
+    try:
+
+        ## Create the s3 session
+        session = boto3.Session(aws_access_key_id=ACCESS_KEY,aws_secret_access_key=SECRET_KEY)
+        
+        ## Create s3 client as we need this only
+        s3 = session.client('s3')
+
+        print(f"Before load into dataframe - {datetime.now()}")
+        ## Read the file in frame..
+        df = _readFromS3(bucket=BUCKET, key=inputFile, s3=s3)
+
+        print(f"After loaded into dataframe - {datetime.now()}")
+        
+        ## Write back to s3 with protected and xlsx
+        print(f"Before write into dataframe & s3 - {datetime.now()}")
+        if template == 'analytics':
+            _writeProtectedSheetToS3(df,BUCKET, inputFile,'Data',s3=s3);
+        else :
+            raise Exception(f"Sorry this {template} template type is not yet implemented")
+        
+        print(f"Successfully pushed into s3 - {datetime.now()}")
+
+        return {
+            'status': 200,
+            'body': {
+                'message': json.dumps('Successfully converted !'),
+                'output': f"{inputFile}.xlsx"
+            }
+        }
+    except Exception as e:
+        return {
+            'status': 500,
+            'body': {
+                'message': f"{e}"
+            }
+        }
+
+
+## Enable this for dev testing
+# if __name__ == "__main__":
+#     handler({filePath:'hello.txt', template:}) # type: ignore
     
-    print('Current timestamp before to_excel: ', datetime.now())
-    _protectedWorkSheet(new_dataFrame,'Data');
-    print('Current timestamp after to_excel: ', datetime.now())
-
-
-
-if __name__ == 'main':
-    handler()
